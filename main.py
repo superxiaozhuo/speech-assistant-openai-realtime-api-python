@@ -10,12 +10,17 @@ from fastapi.websockets import WebSocketDisconnect
 from twilio.twiml.voice_response import VoiceResponse, Connect, Say, Stream
 from dotenv import load_dotenv
 
+# 易容注：我们设置 ClashX wss proxy，不然无法访问 OpenAI Realtime API。
+proxy_uri = "http://127.0.0.1:7890"
+
 load_dotenv()
 
 # Configuration
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY') # requires OpenAI Realtime API Access
+
 # 易容注：2024-10-05，这里默认端口是 5050，我修改为 6006，以适合 autodl。
 PORT = int(os.getenv('PORT', 6006))
+
 SYSTEM_MESSAGE = (
     "You are a helpful and bubbly AI assistant who loves to chat about "
     "anything the user is interested in and is prepared to offer them facts. "
@@ -31,12 +36,13 @@ LOG_EVENT_TYPES = [
 
 app = FastAPI()
 
-
 if not OPENAI_API_KEY:
     raise ValueError('Missing the OpenAI API key. Please set it in the .env file.')
 
 @app.get("/", response_class=HTMLResponse)
 async def index_page():
+    # 易容注：这里原代码有误，应当返回的是 HTML，而不是 {}。我改正了。
+    # return {"message": "Twilio Media Stream Server is running!"}
     return "<html><body><h1>Twilio Media Stream Server is running!</h1></body></html>"
 
 @app.api_route("/incoming-call", methods=["GET", "POST"])
@@ -52,8 +58,6 @@ async def handle_incoming_call(request: Request):
     connect.stream(url=f'wss://{host}/media-stream')
     response.append(connect)
     return HTMLResponse(content=str(response), media_type="application/xml")
-
-proxy_uri = "http://127.0.0.1:7890"
 
 @app.websocket("/media-stream")
 async def handle_media_stream(websocket: WebSocket):
